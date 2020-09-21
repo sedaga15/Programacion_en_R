@@ -2,18 +2,26 @@
 #                  Manipulacion de Datos                   #
 # ******************************************************** #
 
+
+### Sebastian Garcia
+### Programacion en R
+
+
 ## Todos los comentarios marcados como #* son ejercicios para el lector.
 
 ### Declaracion del ambiente de trabajo ----
 
-# setwd("ruta de los archivos")
+setwd("Taller_2")
 
 ### Cargue de datos ----
 
 ## Paquete base
+library(tidyverse)
+library(data.table)
+library(lubridate)
 
 #Aeropuertos
-aeropuertos <- read.csv("Sesion 2/data/aeropuertos.csv", sep="\t", header=T, dec=",", quote = "\"", 
+aeropuertos <- read.csv("aeropuertos.csv", sep="\t", header=T, dec=",", quote = "\"", 
                         colClasses = c("character", "character", "numeric","numeric", "integer", "integer", "character", "character"))
 # Si es necesario los nombres de las columnas se especifican de manera analoga a la definicion de colClases con col.names = c()
 str(aeropuertos) # Consulta la estructuta de un conjunto de datos.
@@ -21,16 +29,17 @@ names(aeropuertos) # Lista los nombres de las columnas de un conjunto de datos.
 
 #Vuelos
 #** Cargar base de datos de vuelos
+vuelos <- read.csv("vuelos.csv", sep="|", header = T)
 
 # Paquete data.table
 library(data.table)
 
 #Aeropuertos
-aeropuertos <- fread("Sesion 2/data/aeropuertos.csv", verbose = T)
+aeropuertos <- fread("aeropuertos.csv", verbose = T)
 #Vuelos
-vuelos <- fread("Sesion 2/data/vuelos.csv", verbose = T)
+vuelos <- fread("vuelos.csv", verbose = T)
 #* Determine la esctructura de la tabla vuelos.
-
+str(vuelos)
 
 ### Funciones Dplyr ----
 
@@ -52,8 +61,14 @@ f1<- vuelos %>%
   filter(dest %in% c("SFO", "OAK"))  # Forma 3, operador pipe %>% 
 
 #* Seleccione de los anteriores vuelos todos aquellos que salieron entre la medianoche y las 5 de la mauana
+f2 <- vuelos %>% 
+  filter(dep_time >= 0, dep_time<=500)
+
 
 #* Y de los anteriores solo los vuelos cuyo retraso a la llegada fue mas que doble del retraso en la salida
+f3 <- f2 %>% 
+  filter(arr_delay>2*dep_delay)
+
 
 ## Seleccionar Variables
 
@@ -69,6 +84,9 @@ s1 <- select(vuelos, contains("delay"))
 s2 <- select(vuelos, -time_hour)
 
 #* Seleccionar todas las variables desde year hasta carrier
+
+s3 <- vuelos %>% 
+  select(year:carrier)
 
 ## Ordenar variables
 
@@ -90,6 +108,8 @@ m2 <- mutate(m1, speed60=speed/60)
 
 #* Calular una variable de distancia con las etiquetas 'short' para vuelos con distancia menor a 700 y 'long' en otro caso
 
+m3 <- vuelos %>% 
+  mutate(distancia=ifelse(distance<700, "short", "long"))
 
 ## group_by
 
@@ -100,12 +120,30 @@ g1 <- group_by(vuelos, year) %>% mutate(Distancia_promedio=mean(distance))
 
 #* Calcule una nueva variable que sea la mediana del tiempo de vuelo por ano .
 
+g2 <- vuelos %>% 
+  group_by(year) %>% 
+  mutate(mediana=median(distance))
+
 # Summarize-
 
 # Calcule el numero de vuelos y el numero de destinos unicos para cada origen.
 g3 <- group_by(vuelos, origin) %>% summarise(N_Vuelos=n(), N_Destinos=n_distinct(dest)) 
 
 #* Calcule el la distancia minima promedio y maxima por cada destino
+
+g4 <- vuelos %>% 
+  group_by(dest) %>% 
+  summarise(minimo=min(distance, na.rm = T),
+            promedio=mean(distance, na.rm = T),
+            maximo=max(distance, na.rm = T))
+
+g5 <- vuelos %>% 
+  group_by(year, month, dest) %>% 
+  summarise(Freq=n()) %>% 
+  ungroup()
+
+g5 %>% 
+  select(year)
 
 ### Encadenamiento de Funciones ----
 
@@ -168,4 +206,9 @@ AntiJoin <- anti_join(Forma3, aeropuertos, by=c("dest"="faa"))
 
 
 #* Construya una consulta a partir ed la tabla InnJoin que contenga al menos 4 verbos dplyr.
-  
+
+consulta <- InnJoin %>% 
+  rename(dist_m=distance, destino=dest, media=MeanSpeed) %>% 
+  arrange(media) %>% 
+  filter(media<5) %>% 
+  summarise(maxdist=max(dist_m))
